@@ -1,0 +1,151 @@
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const multer = require("multer");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const { spawn } = require("child_process");
+require("dotenv").config();
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Middleware
+app.use(express.json());
+app.use(cors());
+
+// Database Connection
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+  .then(() => console.log("MongoDB Connected"))
+  .catch(err => console.error(err));
+
+// User Schema & Model
+const UserSchema = new mongoose.Schema({
+  username: String,
+  email: String,
+  password: String,
+  role: { type: String, default: "user" }, // Added role field
+});
+const User = mongoose.model("User", UserSchema);
+
+// Middleware for Admin Authentication
+const authenticateToken = (req, res, next) => {
+  const token = req.header("Authorization");
+  if (!token) return res.status(401).json({ error: "Access Denied" });
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: "Invalid Token" });
+    req.user = user;
+    next();
+  });
+};
+
+const isAdmin = (req, res, next) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+  next();
+};
+
+// Authentication Routes
+app.post("/register", async (req, res) => {
+  try {
+    const { username, email, password, role } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({ username, email, password: hashedPassword, role: role || "user" });
+    await newUser.save();
+    res.status(201).json({ message: "User registered successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Registration failed" });
+  }
+});
+
+app.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+    const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    res.json({ token, message: "Login successful" });
+  } catch (error) {
+    res.status(500).json({ error: "Login failed" });
+  }
+});
+
+// Admin Dashboard Route
+app.get("/admin/dashboard", authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find();
+    res.json({ message: "Admin Dashboard", users });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch admin data" });
+  }
+});
+
+// File Upload Setup for Defect Detection
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+// Routes
+app.get("/", (req, res) => {
+  res.send("AI Textile Platform Backend is Running");
+});
+
+// AI Fabric Defect Detection
+app.post("/detect-defect", upload.single("image"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "No file uploaded" });
+  }
+  
+  const pythonProcess = spawn("python3", ["fabric_defect_detection.py", req.file.buffer.toString("base64")]);
+  
+  pythonProcess.stdout.on("data", (data) => {
+    res.json({ result: data.toString() });
+  });
+
+  pythonProcess.stderr.on("data", (data) => {
+    console.error("Error:", data.toString());
+    res.status(500).json({ error: "AI processing failed" });
+  });
+});
+
+// AI Demand Forecasting
+app.post("/forecast-demand", (req, res) => {
+  const { productData } = req.body;
+  if (!productData) {
+    return res.status(400).json({ error: "No product data provided" });
+  }
+  
+  const pythonProcess = spawn("python3", ["demand_forecasting.py", JSON.stringify(productData)]);
+  
+  pythonProcess.stdout.on("data", (data) => {
+    res.json({ forecast: JSON.parse(data.toString()) });
+  });
+
+  pythonProcess.stderr.on("data", (data) => {
+    console.error("Error:", data.toString());
+    res.status(500).json({ error: "AI processing failed" });
+  });
+});
+
+// Demo Route for User Guidance
+app.get("/demo", (req, res) => {
+  res.json({
+    message: "Welcome to the Cedrafil AI Textile Platform!",
+    steps: [
+      "1. Register and log in to access AI features.",
+      "2. Upload an image to detect fabric defects.",
+      "3. Provide product data to forecast demand.",
+      "4. Get real-time AI analysis for optimized production.",
+      "5. Use the UI to navigate easily and make informed decisions.",
+      "6. Admins can view and manage users via the dashboard."
+    ],
+  });
+});
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
