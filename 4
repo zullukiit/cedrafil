@@ -1,0 +1,122 @@
+import React, { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { LucideScanEye, LucideChartBar, LucideBrush, LucideBot, LucideLeaf, LucideUsers, LucideSettings } from "lucide-react";
+
+export default function Home() {
+  const [file, setFile] = useState(null);
+  const [detectionResult, setDetectionResult] = useState(null);
+  const [forecastData, setForecastData] = useState(null);
+  const [design, setDesign] = useState(null);
+  const [chatResponse, setChatResponse] = useState(null);
+  const [sustainabilityTip, setSustainabilityTip] = useState(null);
+  const [productivityData, setProductivityData] = useState(null);
+
+  const features = [
+    { icon: LucideScanEye, title: "Fabric Defect Detection", description: "AI-powered real-time fabric inspection to minimize defects." },
+    { icon: LucideChartBar, title: "Demand Forecasting", description: "AI analytics to predict textile demand and optimize production." },
+    { icon: LucideBrush, title: "AI Textile Design Generator", description: "Create unique textile patterns using AI-driven design tools." },
+    { icon: LucideBot, title: "Smart Factory Chatbot", description: "AI assistant for troubleshooting and quality control." },
+    { icon: LucideLeaf, title: "Sustainable Fabric Recommendations", description: "AI-driven suggestions for eco-friendly textiles." },
+    { icon: LucideUsers, title: "Workforce Productivity Tracker", description: "Monitor and enhance worker efficiency with AI." },
+    { icon: LucideSettings, title: "Automated Quality Control", description: "AI-driven inspection system to maintain consistent product quality." }
+  ];
+
+  const handleFileChange = (event) => {
+    setFile(event.target.files[0]);
+  };
+
+  const uploadFabricImage = async () => {
+    if (!file) return alert("Please select an image first.");
+    const formData = new FormData();
+    formData.append("fabricImage", file);
+    const response = await fetch("http://localhost:5000/detect-defects", { method: "POST", body: formData });
+    const result = await response.json();
+    setDetectionResult(result.defect ? `Defect Detected: ${result.defect}` : "No Defect Found");
+  };
+
+  const fetchDemandForecast = async () => {
+    const response = await fetch("http://localhost:5000/forecast-demand");
+    const data = await response.json();
+    setForecastData(`Predicted Demand: ${data.forecast}`);
+  };
+
+  const generateTextileDesign = async () => {
+    const response = await fetch("http://localhost:5000/generate-design");
+    const data = await response.json();
+    setDesign(data.designUrl);
+  };
+
+  const interactWithChatbot = async () => {
+    const response = await fetch("http://localhost:5000/chatbot-response");
+    const data = await response.json();
+    setChatResponse(data.reply);
+  };
+
+  const getSustainabilityTip = async () => {
+    const response = await fetch("http://localhost:5000/sustainability-tip");
+    const data = await response.json();
+    setSustainabilityTip(data.tip);
+  };
+
+  const fetchProductivityData = async () => {
+    const response = await fetch("http://localhost:5000/productivity-tracker");
+    const data = await response.json();
+    setProductivityData(`Productivity Score: ${data.score}`);
+  };
+
+  return (
+    <div className="p-10 bg-gray-100 min-h-screen">
+      <h1 className="text-4xl font-bold text-center mb-8 text-blue-700">AI-Powered Textile Platform</h1>
+      <p className="text-lg text-center mb-10 text-gray-700">Revolutionizing the textile industry with cutting-edge AI solutions.</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {features.map((feature, index) => (
+          <Card key={index} className="p-6 bg-white shadow-lg rounded-2xl hover:shadow-xl transition-shadow duration-300">
+            <feature.icon className="w-12 h-12 text-blue-600 mb-4" />
+            <CardContent>
+              <h2 className="text-2xl font-semibold mt-4 text-gray-800">{feature.title}</h2>
+              <p className="text-gray-600 mt-2">{feature.description}</p>
+              {feature.title === "Fabric Defect Detection" && (
+                <>
+                  <input type="file" onChange={handleFileChange} className="mt-4" />
+                  <Button className="mt-2" onClick={uploadFabricImage}>Upload & Detect</Button>
+                  {detectionResult && <p className={`mt-2 ${detectionResult.includes('No Defect') ? 'text-green-600' : 'text-red-600'}`}>{detectionResult}</p>}
+                </>
+              )}
+              {feature.title === "Demand Forecasting" && (
+                <>
+                  <Button className="mt-4" onClick={fetchDemandForecast}>Get Forecast</Button>
+                  {forecastData && <p className="text-blue-600 mt-2">{forecastData}</p>}
+                </>
+              )}
+              {feature.title === "AI Textile Design Generator" && (
+                <>
+                  <Button className="mt-4" onClick={generateTextileDesign}>Generate Design</Button>
+                  {design && <img src={design} alt="Generated Design" className="mt-2 w-full rounded-md" />}
+                </>
+              )}
+              {feature.title === "Smart Factory Chatbot" && (
+                <>
+                  <Button className="mt-4" onClick={interactWithChatbot}>Ask Chatbot</Button>
+                  {chatResponse && <p className="text-gray-800 mt-2">{chatResponse}</p>}
+                </>
+              )}
+              {feature.title === "Sustainable Fabric Recommendations" && (
+                <>
+                  <Button className="mt-4" onClick={getSustainabilityTip}>Get Tip</Button>
+                  {sustainabilityTip && <p className="text-green-600 mt-2">{sustainabilityTip}</p>}
+                </>
+              )}
+              {feature.title === "Workforce Productivity Tracker" && (
+                <>
+                  <Button className="mt-4" onClick={fetchProductivityData}>Track Productivity</Button>
+                  {productivityData && <p className="text-blue-600 mt-2">{productivityData}</p>}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
