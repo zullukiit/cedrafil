@@ -1,0 +1,152 @@
+import React, { useState } from "react";
+import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
+import Login from "./components/Login";
+import Register from "./components/Register";
+import Dashboard from "./components/Dashboard";
+import DefectDetection from "./components/DefectDetection";
+import DemandForecasting from "./components/DemandForecasting";
+import AdminDashboard from "./components/AdminDashboard";
+import Navbar from "./components/Navbar";
+import "./App.css";
+
+const App = () => {
+  const [token, setToken] = useState(localStorage.getItem("token"));
+  const [role, setRole] = useState(localStorage.getItem("role"));
+
+  return (
+    <Router>
+      <Navbar token={token} setToken={setToken} />
+      <Routes>
+        <Route path="/" element={token ? <Dashboard /> : <Navigate to="/login" />} />
+        <Route path="/login" element={<Login setToken={setToken} setRole={setRole} />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/detect-defect" element={token ? <DefectDetection /> : <Navigate to="/login" />} />
+        <Route path="/forecast-demand" element={token ? <DemandForecasting /> : <Navigate to="/login" />} />
+        <Route path="/admin" element={role === "admin" ? <AdminDashboard /> : <Navigate to="/" />} />
+      </Routes>
+    </Router>
+  );
+};
+
+export default App;
+
+// Components Structure
+// 1. Login.js - User authentication
+// 2. Register.js - User registration
+// 3. Dashboard.js - Main user panel
+// 4. DefectDetection.js - Upload & analyze fabric defects
+// 5. DemandForecasting.js - Predict textile demand
+// 6. AdminDashboard.js - Manage users & insights
+// 7. Navbar.js - Navigation menu
+
+// DefectDetection.js Component
+import React, { useState } from "react";
+
+const DefectDetection = () => {
+  const [file, setFile] = useState(null);
+  const [result, setResult] = useState(null);
+
+  const handleFileChange = (event) => {
+    setFile(event.target.files[0]);
+  };
+
+  const handleUpload = async () => {
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const response = await fetch("/api/detect-defect", {
+      method: "POST",
+      body: formData,
+    });
+    const data = await response.json();
+    setResult(data.result);
+  };
+
+  return (
+    <div>
+      <h2>Fabric Defect Detection</h2>
+      <input type="file" accept="image/*" onChange={handleFileChange} />
+      <button onClick={handleUpload}>Upload & Analyze</button>
+      {result && <p>Defect Analysis: {result}</p>}
+    </div>
+  );
+};
+
+export default DefectDetection;
+
+// Login.js Component
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+const Login = ({ setToken, setRole }) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const navigate = useNavigate();
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    const response = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await response.json();
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("role", data.role);
+      setToken(data.token);
+      setRole(data.role);
+      navigate("/");
+    }
+  };
+
+  return (
+    <div>
+      <h2>Login</h2>
+      <form onSubmit={handleLogin}>
+        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <button type="submit">Login</button>
+      </form>
+    </div>
+  );
+};
+
+export default Login;
+
+// Register.js Component
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+const Register = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const navigate = useNavigate();
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    const response = await fetch("/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    if (response.ok) {
+      navigate("/login");
+    }
+  };
+
+  return (
+    <div>
+      <h2>Register</h2>
+      <form onSubmit={handleRegister}>
+        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <button type="submit">Register</button>
+      </form>
+    </div>
+  );
+};
+
+export default Register;
